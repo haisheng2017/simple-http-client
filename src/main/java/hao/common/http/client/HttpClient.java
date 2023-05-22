@@ -11,12 +11,15 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okhttp3.logging.HttpLoggingInterceptor;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public abstract class HttpClient {
+
+    public static ThreadLocal<InternalRequest> threadLocalRequest = new ThreadLocal<>();
 
     public static final MediaType MEDIA_JSON = MediaType.parse("application/json; charset=utf-8");
     private final URI endpoint;
@@ -31,11 +34,12 @@ public abstract class HttpClient {
     }
 
     protected void addInterceptors(OkHttpClient.Builder builder) {
+        builder.addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY));
         builder.addInterceptor(new JsonRequestInterceptor());
     }
 
     protected InternalRequest createRequest() {
-        return new InternalRequest(null);
+        return new InternalRequest();
     }
 
     protected <T> T execute(InternalRequest request, Class<T> responseClass) {

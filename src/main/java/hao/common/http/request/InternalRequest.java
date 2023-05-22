@@ -8,7 +8,6 @@ import java.util.Map;
 
 public class InternalRequest {
 
-    private final Credentials credentials;
     private final StringBuilder path;
 
     @Getter
@@ -20,9 +19,8 @@ public class InternalRequest {
     @Getter
     private Object requestBody;
 
-    public InternalRequest(Credentials credentials) {
+    public InternalRequest() {
         path = new StringBuilder();
-        this.credentials = credentials;
     }
 
     public InternalRequest addHeader(String key, String value) {
@@ -64,6 +62,17 @@ public class InternalRequest {
 
     public InternalRequest delete() {
         httpMethod = HttpMethod.DELETE;
+        return this;
+    }
+
+    public InternalRequest method(HttpMethod method) {
+        httpMethod = method;
+        return this;
+    }
+
+    public InternalRequest method(HttpMethod method, Object body) {
+        httpMethod = method;
+        requestBody = body;
         return this;
     }
 
