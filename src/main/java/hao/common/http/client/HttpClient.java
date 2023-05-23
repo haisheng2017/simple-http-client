@@ -3,8 +3,10 @@ package hao.common.http.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hao.common.http.exception.InternalException;
 import hao.common.http.interceptor.JsonRequestInterceptor;
+import hao.common.http.request.HttpMethod;
 import hao.common.http.request.InternalRequest;
 import okhttp3.HttpUrl;
+import okhttp3.Interceptor;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -16,6 +18,7 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 public abstract class HttpClient {
 
@@ -33,9 +36,16 @@ public abstract class HttpClient {
         httpClient = builder.build();
     }
 
+    protected HttpClient(String endpoint, List<Interceptor> list) throws URISyntaxException {
+        this.endpoint = new URI(endpoint);
+        OkHttpClient.Builder builder = new OkHttpClient().newBuilder();
+        list.forEach(builder::addInterceptor);
+        httpClient = builder.build();
+    }
+
     protected void addInterceptors(OkHttpClient.Builder builder) {
-        builder.addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY));
         builder.addInterceptor(new JsonRequestInterceptor());
+        builder.addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY));
     }
 
     protected InternalRequest createRequest() {
@@ -86,6 +96,8 @@ public abstract class HttpClient {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+        } else if (!HttpMethod.GET.getName().equals(request.getMethod())) {
+            body = RequestBody.create(new byte[0], null);
         }
         if (request.getMethod() == null || "".equals(request.getMethod())) {
             throw new RuntimeException("request method is empty");

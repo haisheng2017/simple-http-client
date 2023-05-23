@@ -1,6 +1,7 @@
 package hao.common.http.interceptor;
 
 import hao.common.http.auth.Credentials;
+import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -14,11 +15,16 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 public class BceRequestInterceptor implements Interceptor {
 
@@ -26,14 +32,12 @@ public class BceRequestInterceptor implements Interceptor {
     private static final String MUST_SIGN_HEADER = "Host";
     private static final String AUTHORIZATION_HEADER = "Authorization";
 
-    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+    private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
     private final Credentials credentials;
-    private final String host;
     private final Integer expirationPeriodInSeconds;
 
-    public BceRequestInterceptor(Credentials credentials, String host) {
+    public BceRequestInterceptor(Credentials credentials) {
         this.credentials = credentials;
-        this.host = host;
         expirationPeriodInSeconds = 60;
     }
 
@@ -48,12 +52,11 @@ public class BceRequestInterceptor implements Interceptor {
     }
 
     private String toUTCString() {
-        DateFormat df = new SimpleDateFormat("yyyy-MM-ddThh:mm:ssZ");
-        return df.format(new Date());
+        return ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_INSTANT);
     }
 
-    private String validPath(String path) {
-        return (path == null || path.length() == 0) ? "/" : path;
+    private String validPath(List<String> path) {
+        return "/" + path.stream().map(this::urlEncode).collect(Collectors.joining("/"));
     }
 
     private String urlEncode(String str) {
@@ -74,11 +77,13 @@ public class BceRequestInterceptor implements Interceptor {
     }
 
     private String canonicalHeaders(Map<String, String> headers) {
-        return headers.entrySet().stream().map(e -> String.join(":", urlEncode(e.getKey().toLowerCase()), urlEncode(e.getValue().trim()))).sorted().collect(Collectors.joining("\n"));
+        return headers.entrySet().stream().filter(i->i.getKey().equals(MUST_SIGN_HEADER))
+                .map(e -> String.join(":", urlEncode(e.getKey().toLowerCase()), urlEncode(e.getValue().trim()))).sorted().collect(Collectors.joining("\n"));
     }
 
     private String signedHeaders(Map<String, String> headers) {
-        return headers.keySet().stream().map(i -> urlEncode(i.toLowerCase())).sorted().collect(Collectors.joining(";"));
+        return headers.keySet().stream().filter(i->i.equals(MUST_SIGN_HEADER))
+                .map(i -> urlEncode(i.toLowerCase())).sorted().collect(Collectors.joining(";"));
     }
 
     private Request sign(Request request) {
@@ -86,25 +91,28 @@ public class BceRequestInterceptor implements Interceptor {
             return request;
         }
         Request.Builder compressed = request.newBuilder();
-
+        HttpUrl url = request.url();
         String ak = credentials.getAccessKey();
         String sk = credentials.getSecretKey();
 
-        if (isEmpty(request.header(MUST_SIGN_HEADER))) {
-            compressed.header(MUST_SIGN_HEADER, host);
+        Map<String, String> headers = StreamSupport.stream(request.headers().spliterator(), false).collect(HashMap::new, (m, p) -> m.put(p.getFirst(), p.getSecond()), HashMap::putAll);
+        if (isEmpty(headers.get(MUST_SIGN_HEADER))) {
+            compressed.header(MUST_SIGN_HEADER, url.host());
+            headers.put(MUST_SIGN_HEADER, url.host());
         }
 
         String authStringPrefix = BCE_AUTH_VERSION + "/" + ak + "/" + toUTCString() + "/" + expirationPeriodInSeconds;
-        String canonicalURI = urlEncode(validPath(path));
-        String canonicalQueryString = canonicalQueryString(queries);
+        String canonicalURI = validPath(url.pathSegments());
+        String canonicalQueryString = canonicalQueryString(
+                IntStream.range(0, url.querySize()).collect(HashMap::new, (m, i) -> m.put(url.queryParameterName(i), url.queryParameterValue(i)), HashMap::putAll));
         String canonicalHeaders = canonicalHeaders(headers);
         String signedHeaders = signedHeaders(headers);
         String signingKey = hmacSha256Hex(sk, authStringPrefix);
-        String canonicalRequest = String.join("\n", method.getName(), canonicalURI, canonicalQueryString, canonicalHeaders);
+        String canonicalRequest = String.join("\n", request.method(), canonicalURI, canonicalQueryString, canonicalHeaders);
         String signature = hmacSha256Hex(signingKey, canonicalRequest);
 
-        String authorization = String.join("/", authStringPrefix, signedHeaders, signature;
-
+        String authorization = String.join("/", authStringPrefix, signedHeaders, signature);
+        System.out.println(canonicalRequest);
         compressed.header(AUTHORIZATION_HEADER, authorization);
         return compressed.build();
     }
@@ -126,7 +134,6 @@ public class BceRequestInterceptor implements Interceptor {
     @NotNull
     public Response intercept(@NotNull Chain chain) throws IOException {
         Request originalRequest = chain.request();
-
         return chain.proceed(sign(originalRequest));
     }
 }
