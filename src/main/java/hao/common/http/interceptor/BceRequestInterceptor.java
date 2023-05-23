@@ -61,7 +61,7 @@ public class BceRequestInterceptor implements Interceptor {
 
     private String urlEncode(String str) {
         try {
-            return URLEncoder.encode(str, StandardCharsets.UTF_8.name());
+            return URLEncoder.encode(str, StandardCharsets.UTF_8.name()).replaceAll("\\+", "%20");
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
@@ -77,12 +77,12 @@ public class BceRequestInterceptor implements Interceptor {
     }
 
     private String canonicalHeaders(Map<String, String> headers) {
-        return headers.entrySet().stream().filter(i->i.getKey().equals(MUST_SIGN_HEADER))
+        return headers.entrySet().stream().filter(i -> i.getKey().equals(MUST_SIGN_HEADER))
                 .map(e -> String.join(":", urlEncode(e.getKey().toLowerCase()), urlEncode(e.getValue().trim()))).sorted().collect(Collectors.joining("\n"));
     }
 
     private String signedHeaders(Map<String, String> headers) {
-        return headers.keySet().stream().filter(i->i.equals(MUST_SIGN_HEADER))
+        return headers.keySet().stream().filter(i -> i.equals(MUST_SIGN_HEADER))
                 .map(i -> urlEncode(i.toLowerCase())).sorted().collect(Collectors.joining(";"));
     }
 
