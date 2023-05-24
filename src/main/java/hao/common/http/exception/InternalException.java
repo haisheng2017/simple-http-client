@@ -10,6 +10,12 @@ public class InternalException extends RuntimeException {
         catalog = "UNKNOWN";
     }
 
+    public InternalException(int code, String message, String catalog) {
+        super(message);
+        this.code = code;
+        this.catalog = catalog;
+    }
+
     @Override
     public String toString() {
         String s = getClass().getName();
