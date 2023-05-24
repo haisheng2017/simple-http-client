@@ -1,5 +1,7 @@
 package hao.common.http.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import hao.common.http.auth.BceCredentials;
 import hao.common.http.interceptor.BceRequestInterceptor;
 import hao.common.http.interceptor.JsonRequestInterceptor;
@@ -49,6 +51,7 @@ public class AppTest extends TestCase {
     }
 
     public void testBceHttpClient() throws URISyntaxException {
+        ObjectMapper json = new ObjectMapper();
         String endpoint = "http://iam.bj.baidubce.com";
         String ak = "";
         String sk = "";
@@ -58,6 +61,29 @@ public class AppTest extends TestCase {
         };
         Object ret = bce.execute(bce.createRequest()
                 .path("v1/user")
+                .get(), Object.class
+        );
+        System.out.println(ret);
+        ret = bce.execute(bce.createRequest()
+                .path("v1/policy")
+                .addParameters("policyType", "System")
+                .addParameters("nameFilter", "系统")
+                .get(), Object.class
+        );
+        System.out.println(ret);
+        try {
+            ret = bce.execute(bce.createRequest()
+                    .path("v1/policy")
+                    .post(json.readValue("{\"name\":\"test_policy\", \"document\":\"{\\\"accessControlList\\\": [{\\\"region\\\":\\\"bj\\\",\\\"service\\\":\\\"bcc\\\",\\\"resource\\\":[\\\"*\\\"],\\\"permission\\\":[\\\"*\\\"],\\\"effect\\\":\\\"Allow\\\"}]}\"}\n", Object.class)), Object.class
+            );
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(ret);
+        ret = bce.execute(bce.createRequest()
+                .path("v1/policy")
+                .addParameters("policyType", "System")
+                .addParameters("nameFilter", "test_policy")
                 .get(), Object.class
         );
         System.out.println(ret);

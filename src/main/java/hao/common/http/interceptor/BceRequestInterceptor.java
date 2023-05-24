@@ -41,6 +41,11 @@ public class BceRequestInterceptor implements Interceptor {
         expirationPeriodInSeconds = 60;
     }
 
+    public BceRequestInterceptor(Credentials credentials, int expirationPeriodInSeconds) {
+        this.credentials = credentials;
+        this.expirationPeriodInSeconds = expirationPeriodInSeconds;
+    }
+
     private static String bytesToHex(byte[] bytes) {
         char[] hexChars = new char[bytes.length * 2];
         for (int j = 0; j < bytes.length; j++) {
@@ -77,13 +82,11 @@ public class BceRequestInterceptor implements Interceptor {
     }
 
     private String canonicalHeaders(Map<String, String> headers) {
-        return headers.entrySet().stream().filter(i -> i.getKey().equals(MUST_SIGN_HEADER))
-                .map(e -> String.join(":", urlEncode(e.getKey().toLowerCase()), urlEncode(e.getValue().trim()))).sorted().collect(Collectors.joining("\n"));
+        return headers.entrySet().stream().map(e -> String.join(":", urlEncode(e.getKey().toLowerCase()), urlEncode(e.getValue().trim()))).sorted().collect(Collectors.joining("\n"));
     }
 
     private String signedHeaders(Map<String, String> headers) {
-        return headers.keySet().stream().filter(i -> i.equals(MUST_SIGN_HEADER))
-                .map(i -> urlEncode(i.toLowerCase())).sorted().collect(Collectors.joining(";"));
+        return headers.keySet().stream().map(i -> urlEncode(i.toLowerCase())).sorted().collect(Collectors.joining(";"));
     }
 
     private Request sign(Request request) {
@@ -103,8 +106,7 @@ public class BceRequestInterceptor implements Interceptor {
 
         String authStringPrefix = BCE_AUTH_VERSION + "/" + ak + "/" + toUTCString() + "/" + expirationPeriodInSeconds;
         String canonicalURI = validPath(url.pathSegments());
-        String canonicalQueryString = canonicalQueryString(
-                IntStream.range(0, url.querySize()).collect(HashMap::new, (m, i) -> m.put(url.queryParameterName(i), url.queryParameterValue(i)), HashMap::putAll));
+        String canonicalQueryString = canonicalQueryString(IntStream.range(0, url.querySize()).collect(HashMap::new, (m, i) -> m.put(url.queryParameterName(i), url.queryParameterValue(i)), HashMap::putAll));
         String canonicalHeaders = canonicalHeaders(headers);
         String signedHeaders = signedHeaders(headers);
         String signingKey = hmacSha256Hex(sk, authStringPrefix);
@@ -112,7 +114,6 @@ public class BceRequestInterceptor implements Interceptor {
         String signature = hmacSha256Hex(signingKey, canonicalRequest);
 
         String authorization = String.join("/", authStringPrefix, signedHeaders, signature);
-        System.out.println(canonicalRequest);
         compressed.header(AUTHORIZATION_HEADER, authorization);
         return compressed.build();
     }

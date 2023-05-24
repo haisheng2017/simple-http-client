@@ -15,7 +15,7 @@ public class JsonRequestInterceptor implements Interceptor {
         if (originalRequest.header("Content-Type") == null) {
             compressed.header("Content-Type", "application/json; charset=utf-8");
         }
-        if (originalRequest.header("Accept:") == null) {
+        if (originalRequest.header("Accept") == null) {
             compressed.header("Accept", "application/json");
         }
         return chain.proceed(compressed.build());

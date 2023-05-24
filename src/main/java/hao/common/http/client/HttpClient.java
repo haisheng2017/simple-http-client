@@ -21,9 +21,6 @@ import java.net.URISyntaxException;
 import java.util.List;
 
 public abstract class HttpClient {
-
-    public static ThreadLocal<InternalRequest> threadLocalRequest = new ThreadLocal<>();
-
     public static final MediaType MEDIA_JSON = MediaType.parse("application/json; charset=utf-8");
     private final URI endpoint;
     private final OkHttpClient httpClient;
@@ -62,7 +59,7 @@ public abstract class HttpClient {
     }
 
     protected <T> T handleResponse(Response response, Class<T> responseClass) {
-        if (response.code() != 200) {
+        if (response.code() >= 400) {
             throw new InternalException(response.code(), fetchBody(response.body()));
         }
         try {
