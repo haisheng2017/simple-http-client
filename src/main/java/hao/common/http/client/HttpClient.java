@@ -22,19 +22,19 @@ import java.util.List;
 
 public abstract class HttpClient {
     public static final MediaType MEDIA_JSON = MediaType.parse("application/json; charset=utf-8");
-    private final URI endpoint;
+    private final HttpUrl endpoint;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public HttpClient(String endpoint) throws URISyntaxException {
-        this.endpoint = new URI(endpoint);
+        this.endpoint = HttpUrl.get(endpoint);
         OkHttpClient.Builder builder = new OkHttpClient().newBuilder();
         addInterceptors(builder);
         httpClient = builder.build();
     }
 
     protected HttpClient(String endpoint, List<Interceptor> list) throws URISyntaxException {
-        this.endpoint = new URI(endpoint);
+        this.endpoint = HttpUrl.get(endpoint);
         OkHttpClient.Builder builder = new OkHttpClient().newBuilder();
         list.forEach(builder::addInterceptor);
         httpClient = builder.build();
@@ -82,7 +82,7 @@ public abstract class HttpClient {
 
     private Request genOkHttpRequest(InternalRequest request) {
         Request.Builder builder = new Request.Builder();
-        HttpUrl.Builder url = HttpUrl.get(this.endpoint).newBuilder();
+        HttpUrl.Builder url = endpoint.newBuilder();
         url.addPathSegments(request.getPath());
         request.getHeaders().forEach(builder::addHeader);
         request.getParameters().forEach(url::addQueryParameter);

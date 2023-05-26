@@ -1,18 +1,18 @@
 package hao.common.http.exception;
 
 public class InternalException extends RuntimeException {
-    private final int code;
+    private final int status;
     private final String catalog;
 
-    public InternalException(int code, String message) {
+    public InternalException(int status, String message) {
         super(message);
-        this.code = code;
+        this.status = status;
         catalog = "UNKNOWN";
     }
 
-    public InternalException(int code, String message, String catalog) {
+    public InternalException(int status, String message, String catalog) {
         super(message);
-        this.code = code;
+        this.status = status;
         this.catalog = catalog;
     }
 
@@ -20,7 +20,7 @@ public class InternalException extends RuntimeException {
     public String toString() {
         String s = getClass().getName();
         String message = getLocalizedMessage();
-        return ((message != null) ? (s + ": " + message) : s) + "(code=" + code +
+        return ((message != null) ? (s + ": " + message) : s) + "(status=" + status +
                 ", catalog=" + catalog + ")";
     }
 
