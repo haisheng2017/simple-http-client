@@ -16,7 +16,6 @@ import okhttp3.ResponseBody;
 import okhttp3.logging.HttpLoggingInterceptor;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
@@ -54,7 +53,16 @@ public abstract class HttpClient {
             Response response = httpClient.newCall(genOkHttpRequest(request)).execute();
             return handleResponse(response, responseClass);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw InternalException.ioException(e);
+        }
+    }
+
+    protected void execute(InternalRequest request) {
+        try {
+            Response response = httpClient.newCall(genOkHttpRequest(request)).execute();
+            handleResponse(response);
+        } catch (IOException e) {
+            throw InternalException.ioException(e);
         }
     }
 
@@ -65,7 +73,13 @@ public abstract class HttpClient {
         try {
             return objectMapper.readValue(fetchBody(response.body()), responseClass);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw InternalException.ioException(e);
+        }
+    }
+
+    protected void handleResponse(Response response) {
+        if (response.code() >= 400) {
+            throw new InternalException(response.code(), fetchBody(response.body()));
         }
     }
 
@@ -76,7 +90,7 @@ public abstract class HttpClient {
         try {
             return body.string();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw InternalException.ioException(e);
         }
     }
 
@@ -91,13 +105,13 @@ public abstract class HttpClient {
             try {
                 body = RequestBody.create(objectMapper.writeValueAsBytes(request.getRequestBody()), MEDIA_JSON);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw InternalException.ioException(e);
             }
         } else if (!HttpMethod.GET.getName().equals(request.getMethod())) {
             body = RequestBody.create(new byte[0], null);
         }
         if (request.getMethod() == null || "".equals(request.getMethod())) {
-            throw new RuntimeException("request method is empty");
+            throw InternalException.badUsage("request method is empty");
         }
         return builder.url(url.build()).method(request.getMethod(), body).build();
     }

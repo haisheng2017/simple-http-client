@@ -1,6 +1,7 @@
 package hao.common.http.interceptor;
 
 import hao.common.http.auth.Credentials;
+import hao.common.http.exception.InternalException;
 import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.Request;
@@ -68,7 +69,7 @@ public class BceRequestInterceptor implements Interceptor {
         try {
             return URLEncoder.encode(str, StandardCharsets.UTF_8.name()).replaceAll("\\+", "%20");
         } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+            throw InternalException.runtimeError(e.toString());
         }
     }
 
@@ -124,7 +125,7 @@ public class BceRequestInterceptor implements Interceptor {
             mac.init(new SecretKeySpec(sk.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             return bytesToHex(mac.doFinal(authStringPrefix.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException(e);
+            throw InternalException.runtimeError(e.toString());
         }
     }
 
